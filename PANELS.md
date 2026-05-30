@@ -249,8 +249,10 @@ All five panels share:
   unread items + message threads.
 - **Profile menu** — switch language, logout, view session info.
 - **`portalRoute` guard** — `PortalAuthGateway` ([src/features/auth/PortalAuthGateway.tsx](../src/features/auth/PortalAuthGateway.tsx))
-  redirects authenticated users to their role's workspace; unauth users land on the
-  signup/login surface.
+  redirects authenticated users to their role's workspace; unauthenticated users land on
+  the auth surface with three modes — **sign in**, **sign up**, **forgot password** — and
+  two sign-in methods: **password** or a **one-time code (OTP)** to email or phone. The
+  reset flow verifies an OTP, then sets a new password.
 
 Per memory rule: panels show **empty / error states only**; never canned fallback data.
 The single exception is the payment-service `PendingPaymentProvider` when no real

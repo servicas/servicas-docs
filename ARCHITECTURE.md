@@ -1,7 +1,9 @@
 # Servicas — System Architecture
 
-Servicas is a multi-panel home-services marketplace: customers book providers, providers
-operate jobs, admins curate the catalog and markets, and support handles disputes. The
+Servicas is a multi-panel services marketplace that centralizes the services people need
+— at home, at the office, at work, anywhere — into one app with an AI assistant. Customers
+book providers, providers operate jobs, admins curate the catalog and markets, and support
+handles disputes. The
 platform ships as a single React codebase wrapped for web / mobile (Capacitor) / desktop
 (Tauri), backed by seven Spring Boot microservices on Google Cloud Run.
 
@@ -115,7 +117,16 @@ Single React 19 + TypeScript + Vite codebase under [src/](../src/).
 
 ## 3. Authentication & authorization
 
-- `identity-service` issues JWTs at `/api/v1/auth/login` and `/api/v1/auth/refresh`.
+- `identity-service` is the auth root. The frontend entry surface is
+  `features/auth/PortalAuthGateway.tsx`, which offers three modes — **sign in**, **sign
+  up**, and **forgot password** — and two sign-in methods: **password** or a **one-time
+  code (OTP)** sent to email or phone.
+- Auth endpoints (`/api/v1/auth`): `POST /signup`, `POST /login`, `POST /otp/request` +
+  `POST /otp/verify` (passwordless OTP sign-in), `POST /refresh`, and password reset via
+  `POST /password-reset/request` → `POST /password-reset/otp/verify` →
+  `POST /password-reset/confirm` (legacy aliases `/forgot-password`, `/reset-password`).
+- Sign-up collects full name, email, phone, and password; the role comes from the portal
+  route. All of signup / login / otp issue a JWT.
 - Token payload includes `sub` (userId), `role` (`CUSTOMER` | `PROVIDER` | `ADMIN` |
   `SUPPORT` | `REGIONAL_MANAGER`), and account state.
 - Every other service runs `JwtAuthenticationFilter` against `SERVICAS_IDENTITY_JWT_SECRET`

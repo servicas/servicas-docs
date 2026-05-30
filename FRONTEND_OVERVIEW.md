@@ -25,7 +25,7 @@ Core entry points:
 
 Feature areas under [src/features/](../src/features/):
 
-- Auth: [auth](../src/features/auth) — login/signup/reset, `PortalAuthGateway`, secure token storage
+- Auth: [auth](../src/features/auth) — `PortalAuthGateway` with sign in (password **or** OTP to email/phone), sign up, and forgot-password (OTP-verified reset); secure per-platform token storage
 - Customer workspace: [customer](../src/features/customer) — dashboard, providers hub, payments hub, profile
 - Booking: [booking](../src/features/booking) — service picker → provider → confirmation
 - Portals: [portals](../src/features/portals) — Provider / Admin / Support / Regional workspaces

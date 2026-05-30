@@ -1,8 +1,9 @@
 # Servicas — Documentation Index
 
-Servicas is a multi-panel home-services marketplace. The platform is a single React
-codebase wrapped for web / mobile (Capacitor) / desktop (Tauri) on top of seven
-Spring Boot microservices on Google Cloud Run.
+Servicas centralizes the services people need — at home, at the office, at work,
+anywhere — into one AI-assisted app, instead of a separate app per service. The platform
+is a single React codebase wrapped for web / mobile (Capacitor) / desktop (Tauri) on top
+of seven Spring Boot microservices on Google Cloud Run.
 
 ## Business
 

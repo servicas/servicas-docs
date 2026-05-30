@@ -13,13 +13,24 @@ see [PANELS.md](./PANELS.md).
 
 ## 1. Executive summary
 
-Servicas is an AI-augmented home-services marketplace. Customers book vetted providers
-for HVAC, plumbing, electrical, cleaning, lawn, pool, childcare, and emergency repair;
-providers run their entire job operations inside our app; admins curate the catalog
-per market; and regional managers grow new geographies.
+**The core idea: centralize the services you need — at home, at the office, at work,
+anywhere — into one application, with AI assistance.** Today there is no single place to
+get any service you need wherever you need it. Every service lives in its own separate app
+(one app for cleaning, another for plumbing, another for lawn or grounds, another for
+handyman or IT/office support…), each with its own signup, its own payment, and its own
+quality bar. Servicas brings all of them together: one app where a customer can find and
+book **any** service — for a home, an office, or a workplace — and an AI assistant guides
+them from "this needs fixing" to the right vetted provider, price, and booking.
 
-**One sentence:** _Servicas is the operating system for the local-services economy —
-multi-market, multi-language, multi-currency, mobile-first, AI-assisted._
+Servicas is an AI-augmented services marketplace. Customers book vetted providers for
+cleaning, HVAC, plumbing, electrical, lawn & grounds, security, office/IT support,
+childcare, and emergency repair — across homes, offices, and workplaces, all from one app;
+providers run their entire job operations inside it; admins curate the catalog per market;
+and regional managers grow new geographies.
+
+**One sentence:** _Servicas is the one app for every service you need — at home, at the
+office, or at work — a single, AI-assisted place to get anything done, multi-market,
+multi-language, multi-currency, and mobile-first._
 
 **One line on the model:** _take rate on every transaction, plus subscription tiers
 for premium provider visibility and verification._
@@ -28,10 +39,19 @@ for premium provider visibility and verification._
 
 ## 2. The problem
 
-Local home-services bookings are a $500B+ category globally and still mostly
-analog. The incumbents (Thumbtack, Angi, TaskRabbit, Handy) sell **leads, not
-outcomes** — providers pay per quote even if the customer never books, and
-customers wade through unverified bids.
+**Services are fragmented across dozens of apps — there is no central way to get any
+service you need, whether at home, at the office, or at work.** As of today a customer
+juggles a different app, account, and checkout for each need: one for cleaning, another
+for plumbing, another for lawn or grounds, another for handyman, HVAC, or office/IT
+support, and informal channels (WhatsApp, Facebook groups, word of mouth) for everything
+else. Nobody offers a single place where you can simply ask for *any* service — wherever
+you need it — and get matched, priced, and booked. Servicas exists to be that one app,
+with an AI assistant that figures out which service you actually need.
+
+On top of that fragmentation, the existing players are weak. Local on-site services are a
+$500B+ category globally and still mostly analog. The incumbents (Thumbtack, Angi,
+TaskRabbit, Handy) sell **leads, not outcomes** — providers pay per quote even if the
+customer never books, and customers wade through unverified bids.
 
 Pain on the customer side
 - No way to confirm who actually shows up — verification is opaque.
@@ -72,6 +92,10 @@ Pain on the operator side (admins, regional managers)
 ```
 
 What sets Servicas apart from a bookings app
+- **One app for every service:** A single place to request *any* service — home, office,
+  or workplace — instead of a different app per category. The AI assistant turns a plain
+  description ("the AC is leaking", "we need weekly office cleaning") into the right
+  category, provider, and price.
 - **End-to-end:** From discovery → booking → real-time chat → payment → review →
   dispute resolution. No off-platform handoff.
 - **AI-native:** Matching, multi-language message translation, photo/video damage
@@ -79,9 +103,10 @@ What sets Servicas apart from a bookings app
   ai-assistant service, not bolted on.
 - **Multi-market from day one:** Countries, states, cities, holidays, pricing rules,
   tax, insurance requirements, and SLA policies are all configurable per region.
-- **Operator-grade admin:** Eight-tab admin workspace (dashboard, bookings,
-  customers, providers, services, markets, AI insights, finance) — the kind of
-  back-office competitors keep internal-only.
+- **Operator-grade admin:** Eleven-tab admin workspace (dashboard, bookings, customers,
+  providers, services, markets, AI insights, finance, plus runtime controls for customer
+  features, provider features, and payment providers) — the kind of back-office
+  competitors keep internal-only.
 - **One codebase, three platforms:** Capacitor wraps the React bundle as iOS /
   Android; Tauri wraps the same bundle as macOS / Windows / Linux desktop. No
   divergent native teams.
@@ -153,7 +178,8 @@ Seven Spring Boot services + one React codebase. Detail in
    identity     →  auth, roles, feature flags
    customer     →  saved homes, prefs, favorites, reminders
    marketplace  →  catalog, providers, bookings, reviews, geo
-   payment      →  Stripe · Square · PayPal · Apple Pay  (provider-agnostic)
+   payment      →  admin-configured gateways (Stripe · PayPal · Square · Adyen ·
+                   Google/Apple Pay · generic) + webhooks; secrets encrypted
    notification →  push · email · SMS · in-app threads
    support      →  tickets · disputes · evidence · agent KPIs
    ai-assistant →  matching · translation · vision · transcription · search
@@ -314,9 +340,9 @@ the same React bundle for web, mobile, desktop.
 |---------------------------|-------------------------------------------------------------------------|
 | Engineering               | 7 backends + 5 panels live on Cloud Run (non-prod). CI/CD green.       |
 | Booking lifecycle         | 7-status canonical state machine, internal + external provider flows.  |
-| Payments                  | Stripe / Square / PayPal / Apple Pay adapters; pending-provider safety. |
+| Payments                  | Admin-configured dynamic providers (Stripe/PayPal/Square/Adyen/wallets/generic), encrypted credentials, webhooks; client-side SDK tokenization. |
 | AI                        | Translation, vision, transcription, matching, summarization shipped.    |
-| Admin / Regional tooling  | 8-tab admin + market readiness scoring.                                 |
+| Admin / Regional tooling  | 11-tab admin (incl. feature enablement + payment-provider config) + market readiness scoring. |
 | Mobile / desktop          | Capacitor + Tauri builds working; single codebase.                      |
 | Customers / GMV           | **Pre-launch.** Pilot infra; no production customer base yet.           |
 | Provider supply           | **Pre-launch.** Seeder + onboarding wizard ready; live recruiting next. |
