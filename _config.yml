@@ -1,0 +1,11 @@
+title: Servicas
+description: Architecture and business documentation for the Servicas home-services platform
+theme: jekyll-theme-cayman
+markdown: kramdown
+plugins:
+  - jekyll-relative-links
+relative_links:
+  enabled: true
+  collections: true
+include:
+  - README.md
