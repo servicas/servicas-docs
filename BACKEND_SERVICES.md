@@ -6,13 +6,13 @@ For cross-cutting flows see [KEY_FLOWS.md](./KEY_FLOWS.md).
 
 | Service                       | Owns                                         | Default port |
 |-------------------------------|----------------------------------------------|--------------|
-| identity-service              | auth, users, roles, feature flags            | 8081         |
-| customer-service              | customer-specific data (addresses, prefs)    | 8082         |
-| service-marketplace-service   | catalog, providers, bookings, reviews, geo   | 8083         |
-| support-case-service          | tickets, disputes, evidence                  | 8084         |
-| payment-service               | invoices, charges, refunds, payouts          | 8085         |
-| notification-service          | push, email, SMS, message threads            | 8086         |
-| ai-assistant-service          | AI matching, translation, vision, search     | 8087         |
+| identity-service              | auth, users, roles, feature flags            | 8082         |
+| customer-service              | customer-specific data (addresses, prefs)    | 8083         |
+| service-marketplace-service   | catalog, providers, bookings, reviews, geo   | 8084         |
+| support-case-service          | tickets, disputes, evidence                  | 8085         |
+| payment-service               | invoices, charges, refunds, payouts, providers | 8086       |
+| notification-service          | push, email, SMS, message threads            | 8087         |
+| ai-assistant-service          | AI matching, translation, vision, search     | 8088         |
 
 ---
 
@@ -134,34 +134,56 @@ summarization and suggested-reply generation.
 
 ## payment-service
 
-**Purpose** — payment orchestration across four providers behind a single internal
-contract: invoices, charges, refunds, tips, payout methods.
+**Purpose** — payment orchestration behind a single internal `PaymentProvider` contract:
+invoices, charges, refunds, tips, payout methods, FX rates, and **admin-configured,
+runtime-extensible payment providers**.
 
 **Controllers**
 
-| Class                  | Base path                                |
-|------------------------|------------------------------------------|
-| `PaymentController`    | `/api/v1/payments`                       |
-| `FxRateController`     | `/api/v1/payments/admin/fx-rates`        |
+| Class                            | Base path                                |
+|----------------------------------|------------------------------------------|
+| `PaymentController`              | `/api/v1/payments`                       |
+| `ProviderConfigAdminController`  | `/api/v1/payments/admin/providers`       |
+| `PaymentWebhookController`       | `/api/v1/payments/webhooks/{code}` (permitAll, signature-verified) |
+| `FxRateController`               | `/api/v1/payments/admin/fx-rates`        |
 
-**Entities** — `InvoiceEntity`, `PaymentChargeEntity`,
-`CustomerPaymentMethodEntity`, `PayoutMethodEntity`, `FxRateEntity`.
+**Entities** — `InvoiceEntity`, `PaymentChargeEntity`, `CustomerPaymentMethodEntity`,
+`PayoutMethodEntity`, `FxRateEntity`, `PaymentProviderConfigEntity` (code, kind, mode,
+enabled, markets/currencies, AES-encrypted credentials + webhook secret).
+
+**Provider model** — an admin can add **any payment type at runtime** (no redeploy) from
+the *Payment providers* admin tab. Resolution precedence is *enabled DB config → static
+env-gated bean → pending stub*; `PaymentProviderFactory` builds the adapter per
+`ProviderKind`:
+
+- First-class: `STRIPE` (PaymentIntents), `PAYPAL` (Orders v2), `SQUARE` (REST; also Cash
+  App Pay + wallet methods), `ADYEN` (Checkout, raw HTTP).
+- Wallets: `GOOGLE_PAY` / `APPLE_PAY` delegate to a configured card processor.
+- Catch-all: `REST_TEMPLATE` (config-driven HTTP — Paystack/Flutterwave/MoMo, etc.) and
+  `MANUAL` (offline settlement — bank transfer/Zelle/mobile money; charge stays `PENDING`
+  until a webhook or admin settles it). `BRAINTREE` is a typed stub pending its adapter.
+
+Credentials are encrypted at rest (`SecretCipher`, AES-256-GCM, key from
+`SERVICAS_PAYMENT_CONFIG_ENCRYPTION_KEY`) and never returned by the API (the admin view
+lists only which credential keys are set). The internal model normalizes provider statuses
+(e.g. Square `COMPLETED` → `SUCCEEDED`, `APPROVED` → `PENDING`). Charge tokenization happens
+client-side via each provider's SDK (see [PANELS.md](./PANELS.md#1-customer-panel)).
+
+**Webhooks** — `POST /api/v1/payments/webhooks/{code}` verifies the provider signature
+(Stripe `constructEvent`, Square HMAC, generic shared-secret) and idempotently transitions
+the matching charge `PENDING → SUCCEEDED/FAILED/REFUNDED`, flipping the invoice to `Paid`
+and notifying marketplace on success.
 
 **Cross-service**
 
-- `MarketplaceBookingClient` → service-marketplace-service: writes
-  `status=Paid` on successful charge.
-- `NotificationClient` → notification-service: emits `payment.failed` (with retry
-  link) and `payment.succeeded`.
+- `MarketplaceBookingClient` → service-marketplace-service: writes `status=Paid` on a
+  successful charge (or webhook settlement).
+- `NotificationClient` → notification-service: emits `payment.failed` (with retry link)
+  and `payment.succeeded`.
 
-**External** — Stripe (PaymentIntents), Square (REST), PayPal (Orders v2), Apple Pay
-(delegated through Stripe). The internal model normalizes provider-specific statuses
-(Square `COMPLETED` → `SUCCEEDED`, Square `APPROVED` → `PENDING`, …).
-
-**Pending state** — when no provider is configured the service uses
-`PendingPaymentProvider`, which queues the charge so the UI can still complete the
-booking flow. Per memory rule, this is the **only** sanctioned UI fallback in the
-platform.
+**Pending state** — when no real provider is configured the `PendingPaymentProvider` stub
+(np/dev only, opt-in) returns an honest `UNCONFIGURED` result rather than faking success.
+Per memory rule it is the **only** sanctioned UI fallback in the platform.
 
 ---
 
@@ -217,7 +239,7 @@ Geocoding.
 
 All seven services share the same skeleton:
 
-- `Dockerfile` at repo root, multi-stage build, JRE 17 runtime image.
+- `Dockerfile` at repo root, multi-stage build, JDK 24 runtime image (Spring Boot 4.0.x).
 - `.github/workflows/ci-cd.yml` — same shape per repo:
   - PR to `main` → test + build + deploy to **np**
   - Merge to `main` → test + build only

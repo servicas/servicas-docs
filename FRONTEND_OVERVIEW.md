@@ -2,101 +2,86 @@
 
 ## Purpose
 
-Servicas Web is a multi-role frontend for a home services marketplace. One app serves five main roles:
+Servicas Web is a single React codebase that serves all five roles — **Customer,
+Provider, Admin, Support, Regional manager** — and is wrapped for web (PWA), mobile
+(Capacitor) and desktop (Tauri) without a rewrite. See
+[ARCHITECTURE.md](./ARCHITECTURE.md) for the system view and
+[PANELS.md](./PANELS.md) for per-panel detail.
 
-- Customer
-- Provider
-- Admin
-- Support
-- Regional manager
+The app is **backend-backed**: every feature talks to one of the seven Spring Boot
+services through a typed `*Client.ts` module. There is no mock data layer — panels render
+real data or an explicit empty/error state (the one sanctioned exception is the
+payment-service pending stub when no gateway is configured).
 
-The app is intentionally feature-rich on the frontend side, with local persistence used to simulate cross-role system behavior.
-
-## App Structure
+## App structure
 
 Core entry points:
 
-- App shell: [src/app/App.tsx](src/app/App.tsx)
-- Global styling: [src/app/styles.css](src/app/styles.css)
+- App shell / router: [src/app/App.tsx](../src/app/App.tsx)
+- Global styling: [src/app/styles.css](../src/app/styles.css)
+- Session + role routing: [src/features/app/usePortalSession.ts](../src/features/app/usePortalSession.ts)
+- Navigation (feature-gated): [src/features/app/usePortalNavigation.ts](../src/features/app/usePortalNavigation.ts)
+- Portal definitions (tabs/actions per role): [src/features/portals/portalConfig.ts](../src/features/portals/portalConfig.ts)
 
-Feature areas:
+Feature areas under [src/features/](../src/features/):
 
-- Auth: [src/features/auth](../src/features/auth)
-- Availability: [src/features/availability](../src/features/availability)
-- AI assistant: [src/features/ai-assistant](../src/features/ai-assistant)
-- Booking: [src/features/booking](../src/features/booking)
-- Location: [src/features/location](../src/features/location)
-- Profile: [src/features/profile](../src/features/profile)
-- Portals: [src/features/portals](../src/features/portals)
-- Admin persistence: [src/features/admin](../src/features/admin)
-- Support tickets: [src/features/support](../src/features/support)
-- Payments: [src/features/payments](../src/features/payments)
-- Messaging: [src/features/messages](../src/features/messages)
-- Reviews: [src/features/reviews](../src/features/reviews)
-- Analytics: [src/features/analytics](../src/features/analytics)
+- Auth: [auth](../src/features/auth) — login/signup/reset, `PortalAuthGateway`, secure token storage
+- Customer workspace: [customer](../src/features/customer) — dashboard, providers hub, payments hub, profile
+- Booking: [booking](../src/features/booking) — service picker → provider → confirmation
+- Portals: [portals](../src/features/portals) — Provider / Admin / Support / Regional workspaces
+- Admin: [admin](../src/features/admin) — feature-enablement panels, payment-provider config, market/catalog/AI panels
+- Payments: [payments](../src/features/payments) — client, `Checkout`, and the lazy provider-SDK widget registry
+- Support: [support](../src/features/support) · Messaging: [messages](../src/features/messages) · Reviews: [reviews](../src/features/reviews)
+- AI assistant: [ai-assistant](../src/features/ai-assistant) · Location: [location](../src/features/location) · Analytics: [analytics](../src/features/analytics)
 
-## Frontend State Model
+## Data flow
 
-The frontend uses React state at the app-shell level and local feature services for persistence.
+- **Transport** — each backend has a `*Client.ts` (e.g. `paymentClient.ts`,
+  `marketplaceClient.ts`) that attaches the JWT and targets that service's base URL,
+  resolved at runtime by `config/runtimeConfig.ts` (`*_BASE_URL`). No API gateway.
+- **App-shell state** — `App.tsx` + the `features/app/use*` hooks
+  (`useProtectedPortalData`, `usePortalActions`, `usePortalNavigation`) own session,
+  fetched data, and action handlers; data is loaded from the services and refreshed on a
+  timer, not persisted as a simulation.
+- **Browser storage** is used only for cross-cutting client state: the auth session/JWT
+  (secure storage per platform), theme, and small UI preferences.
 
-Persisted browser storage currently covers:
+## Feature gating
 
-- auth sessions
-- registered accounts
-- customer profile data
-- bookings
-- admin market overrides
-- audit logs
-- support tickets
-- receipts
-- message threads
-- reviews
+Navigation and controls are driven by admin feature flags
+([featureFlagService.ts](../src/features/customer/featureFlagService.ts)). The customer and
+provider portals fetch `GET /api/v1/feature-flags/public`; `usePortalNavigation` drops any
+disabled section and panels hide disabled capabilities. Admins manage these from the
+*Customer features* / *Provider features* tabs. See
+[ARCHITECTURE.md §7](./ARCHITECTURE.md#7-runtime-configuration--feature-enablement--payment-providers).
 
-## Design Direction
+## Payments on the client
 
-The interface uses a dashboard-like application shell with:
+`features/payments/paymentWidgets/` is a registry keyed by provider **kind**, each entry a
+**lazy-loaded** widget (own Vite chunk): Stripe Elements, PayPal Buttons, Square Web
+Payments, and a manual/generic fallback. `Checkout.tsx` fetches the enabled providers for
+the market, renders the chosen widget, tokenizes client-side, then calls
+`payInvoice` / `sendTip`. Real card data never reaches Servicas servers.
 
-- left navigation by portal feature group
-- sticky top bar
-- panel/grid content layout
-- light and dark theme toggle
-- toast notifications
-- local quick search for portal actions
+## Design direction
 
-## What Counts As “Real” In The Frontend
+Dashboard-style shell: left navigation by portal feature group, sticky top bar, panel/grid
+content, light/dark theme toggle, toast notifications, and a local quick-search over portal
+actions. Per the platform rule, panels show **empty / error states only** — never canned
+fallback data.
 
-These parts are interactive and persisted:
+## Test coverage
 
-- booking creation
-- provider job actions
-- admin override actions
-- support ticket creation and status changes
-- invoice payment and receipts
-- messaging threads
-- review submission
-- profile persistence
+Vitest + Testing Library and Playwright (e2e):
 
-These parts are still mostly presentational:
+- unit tests: AI matching, availability logic, portal-config coverage, booking / payments /
+  messaging services, the payment widget registry, and feature-flag gating
+- app-level tests: auth, portal switching, booking flow, profile flow, payments, and core
+  interactions
 
-- provider documents and licensing workflows
-- deep market rule editing
-- advanced feature-flag controls
-- map drawing/routing
-- notification delivery outside the browser UI
+## Recommended next frontend work
 
-## Test Coverage
-
-Testing includes:
-
-- unit tests for AI matching
-- unit tests for availability logic
-- unit tests for portal configuration coverage
-- unit tests for booking, payments, and messaging services
-- app-level tests for auth, portal switching, booking flow, profile flow, and core interactions
-
-## Recommended Next Frontend Work
-
-- break [App.tsx](src/app/App.tsx) into smaller portal-specific components
-- add richer empty/loading/error states around the newer persisted flows
-- add more end-to-end tests for payments, admin approvals, and messaging
-- move from local storage simulation to a real API layer when backend work begins
+- continue breaking [App.tsx](../src/app/App.tsx) into smaller portal-specific components
+- add dedicated client widgets for the remaining provider kinds (Braintree, Adyen, native
+  Google/Apple Pay wallets) — they currently fall back to the manual widget
+- broaden e2e coverage for payments (sandbox), admin approvals, and messaging

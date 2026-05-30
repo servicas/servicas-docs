@@ -30,7 +30,7 @@ pay → review.
 | Dashboard        | [CustomerDashboard.tsx](../src/features/customer/CustomerDashboard.tsx)         | Active bookings, reminders, saved homes, recommendations      |
 | Booking          | [CustomerBookingWorkspace.tsx](../src/features/booking/CustomerBookingWorkspace.tsx) | Service picker → provider selection → confirmation       |
 | Providers hub    | [CustomerProvidersHub.tsx](../src/features/customer/CustomerProvidersHub.tsx)   | Chat threads, favorites, ratings                              |
-| Payments hub     | [CustomerPaymentsHub.tsx](../src/features/customer/CustomerPaymentsHub.tsx)     | Invoices, receipts, saved methods, dispute / refund requests  |
+| Payments hub     | [CustomerPaymentsHub.tsx](../src/features/customer/CustomerPaymentsHub.tsx)     | Invoices, receipts, saved methods, dispute / refund; pay/tip opens [Checkout.tsx](../src/features/payments/Checkout.tsx) which lists the admin-enabled providers and tokenizes via the provider SDK |
 | Support center   | [SupportWorkspace embedded view]                                                | Create / view tickets attached to bookings                    |
 | Profile          | [ProfileManager.tsx](../src/features/profile/ProfileManager.tsx)                | Identity, phone, addresses, preferences                       |
 
@@ -115,28 +115,34 @@ For external providers the **same diagram** applies but every `PUT
 
 ## 3. Admin panel
 
-The admin workspace ships with eight tabs, each consistent with the same
+The admin workspace ships with eleven tabs, each consistent with the same
 `.admin-page-header` layout (eyebrow + h2 + intro). The tabs share the customer-style
-card system to keep visual parity across panels.
+card system to keep visual parity across panels. The last three are runtime-control
+tabs added on top of the original eight.
 
 ```
                               AdminWorkspace
                                     │
-        ┌──────────┬──────────┬─────┴─────┬──────────┬──────────┬──────────┬──────────┐
-        ▼          ▼          ▼           ▼          ▼          ▼          ▼          ▼
-   Dashboard   Bookings   Customers   Providers   Services   Markets   AI Insights  Finance
+   Dashboard · Bookings · Customers · Providers · Services · Markets · AI Insights · Finance
+                                    │
+   ├─ Customer features   (toggle customer portal sections + capabilities)
+   ├─ Provider features   (toggle provider portal sections + tools)
+   └─ Payment providers   (add / configure any payment gateway at runtime)
 ```
 
-| Tab          | Owns                                                                        | Key endpoint(s)                              |
-|--------------|-----------------------------------------------------------------------------|----------------------------------------------|
-| Dashboard    | Single-shot rollup: GMV, bookings/day, provider supply, market readiness    | `GET /marketplace/admin/dashboard`           |
-| Bookings     | Cross-customer booking view, force-transition for external providers        | `GET /marketplace/bookings`, `PUT /bookings/{id}/status` |
-| Customers    | User search, status (Active/Suspended), audit trail                         | `GET /admin/users`, `POST /admin/users/{id}/status` |
-| Providers    | Application queue (Pending/Approved/Rejected), documents review, badges     | `GET /provider/applications`, `POST /provider/applications/{id}/approve` |
-| Services     | Service catalog CRUD, category taxonomy, managed-service lifecycle events   | `GET /marketplace/admin/categories`, `POST /marketplace/services` |
-| Markets      | Country/state/city configuration, pricing & insurance & SLA rules, holidays | `GET /marketplace/admin/geo`, market-readiness scoring |
-| AI Insights  | OpenAI prompt overrides, model usage stats, vision/transcription review     | `GET /admin/ai-prompts`, `PUT /admin/ai-prompts/{key}` |
-| Finance      | FX rates, payout configuration, payment-provider routing                    | `GET /payments/admin/fx-rates`               |
+| Tab               | Owns                                                                        | Key endpoint(s)                              |
+|-------------------|-----------------------------------------------------------------------------|----------------------------------------------|
+| Dashboard         | Single-shot rollup: GMV, bookings/day, provider supply, market readiness    | `GET /marketplace/admin/dashboard`           |
+| Bookings          | Cross-customer booking view, force-transition for external providers        | `GET /marketplace/bookings`, `PUT /bookings/{id}/status` |
+| Customers         | User search, status (Active/Suspended), audit trail                         | `GET /admin/users`, `POST /admin/users/{id}/status` |
+| Providers         | Application queue (Pending/Approved/Rejected), documents review, badges     | `GET /provider/applications`, `POST /provider/applications/{id}/approve` |
+| Services          | Service catalog CRUD, category taxonomy, managed-service lifecycle events   | `GET /marketplace/admin/categories`, `POST /marketplace/services` |
+| Markets           | Country/state/city configuration, pricing & insurance & SLA rules, holidays | `GET /marketplace/admin/geo`, market-readiness scoring |
+| AI Insights       | OpenAI prompt overrides, model usage stats, vision/transcription review     | `GET /admin/ai-prompts`, `PUT /admin/ai-prompts/{key}` |
+| Finance           | FX rates, commission, company payout account, revenue analytics             | `GET /payments/admin/fx-rates`               |
+| Customer features | Enable/disable each customer portal section + capability flags (media, provider contact/chat) | `GET/PUT/DELETE /api/v1/admin/feature-flags` (identity) |
+| Provider features | Enable/disable each provider portal section + optional tools                | `GET/PUT/DELETE /api/v1/admin/feature-flags` (identity) |
+| Payment providers | Add/configure any payment gateway (kind, credentials, markets, mode), enable in checkout | `GET/POST/PUT/DELETE /api/v1/payments/admin/providers` |
 
 ### Dominant business flow — provider approval
 
